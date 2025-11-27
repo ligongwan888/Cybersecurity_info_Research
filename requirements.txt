@@ -1,0 +1,3 @@
+flask
+flask-cors
+gunicorn  # 生产环境部署Web应用需要这个库
