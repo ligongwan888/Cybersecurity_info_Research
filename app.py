@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
-import os # 用于读取环境变量
+import os 
 
 # 初始化 Flask 应用
 app = Flask(__name__)
@@ -9,6 +9,7 @@ app = Flask(__name__)
 CORS(app)
 
 # --- 1. 从环境变量中读取敏感信息 ---
+# 注意：这些变量必须在 Render 平台上设置
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID")
 
@@ -18,10 +19,11 @@ SEARCH_URL = "https://www.googleapis.com/customsearch/v1"
 def search_company_info_real(company_name):
     """
     使用 Google Custom Search API 搜索公司信息。
-    通过多次定向搜索来模拟信息收集。
+    通过多次定向搜索来模拟信息收集，并限制摘要长度。
     """
+    
+    # 检查环境变量是否配置
     if not (GOOGLE_API_KEY and GOOGLE_CSE_ID):
-        # 如果环境变量未设置，返回配置错误提示
         return {
             "error": "后端配置错误：Google API 凭证缺失。",
             "details": "请在 Render 中设置 GOOGLE_API_KEY 和 GOOGLE_CSE_ID 环境变量。"
@@ -41,27 +43,31 @@ def search_company_info_real(company_name):
         "business": "未找到",
         "security_incident": "未找到相关信息"
     }
+    
+    # 定义摘要的最大显示长度，限制过长文本
+    MAX_SNIPPET_LENGTH = 150 
+    
+    # 辅助函数：限制摘要长度，并添加省略号
+    def format_snippet(snippet):
+        if len(snippet) > MAX_SNIPPET_LENGTH:
+            return snippet[:MAX_SNIPPET_LENGTH] + "..."
+        return snippet
 
     # --- 搜索 1: 查找官方网站和业务描述 ---
     try:
-        # 搜索 "公司名 官网 业务"
         search_q = f'"{company_name}" 官网 业务介绍'
         response = requests.get(SEARCH_URL, params={**base_params, 'q': search_q})
-        response.raise_for_status() # 检查HTTP错误
+        response.raise_for_status() 
         
         search_data = response.json()
         if search_data.get('items'):
             item = search_data['items'][0]
-            # 网站通常是第一个结果的链接
             results['website'] = item.get('displayLink', item.get('link', '未找到'))
-            # 业务描述从摘要中获取
-            results['business'] = item.get('snippet', '从搜索摘要中提取业务描述...')
+            # 应用长度限制
+            results['business'] = format_snippet(item.get('snippet', '从搜索摘要中提取业务描述...'))
 
     except requests.exceptions.RequestException as e:
         print(f"Website/Business search failed: {e}")
-    except Exception as e:
-        print(f"Website/Business processing failed: {e}")
-
 
     # --- 搜索 2: 查找营收数据 ---
     try:
@@ -71,8 +77,8 @@ def search_company_info_real(company_name):
         
         search_data = response.json()
         if search_data.get('items'):
-            # 营收信息通常在搜索结果的摘要中
-            results['revenue'] = search_data['items'][0].get('snippet', '尝试从摘要中提取营收数据...')
+            # 应用长度限制
+            results['revenue'] = format_snippet(search_data['items'][0].get('snippet', '尝试从摘要中提取营收数据...'))
             
     except requests.exceptions.RequestException as e:
         print(f"Revenue search failed: {e}")
@@ -86,8 +92,7 @@ def search_company_info_real(company_name):
         
         search_data = response.json()
         if search_data.get('items'):
-            # 如果搜索到结果，则认为有相关事件
-            first_incident_snippet = search_data['items'][0].get('snippet', '发生安全事件！请点击链接查看详情。')
+            first_incident_snippet = format_snippet(search_data['items'][0].get('snippet', '发生安全事件！请点击链接查看详情。'))
             results['security_incident'] = f"**可能发生过**。第一个相关结果摘要：{first_incident_snippet}"
             
     except requests.exceptions.RequestException as e:
@@ -107,8 +112,9 @@ def search():
     # 调用真正的搜索函数
     result = search_company_info_real(company_name)
     
+    # Flask 会自动将 Python 字典转换为 JSON 响应
     return jsonify(result)
 
-# 在部署时，通常使用 gunicorn 或其他 WSGI 服务器启动
 if __name__ == '__main__':
+    # 在本地环境中运行时，使用默认端口
     app.run(debug=True, port=5000)
