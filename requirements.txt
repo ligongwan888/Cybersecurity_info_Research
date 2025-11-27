@@ -1,3 +1,4 @@
 flask
 flask-cors
-gunicorn  # 生产环境部署Web应用需要这个库
+gunicorn
+requests  # 必须确保有这一行
