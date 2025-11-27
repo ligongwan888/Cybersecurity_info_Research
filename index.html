@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>公司信息查找器</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .container { max-width: 800px; margin: auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        input[type="text"] { width: 70%; padding: 10px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #results { margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+        .info-item { margin-bottom: 10px; padding: 10px; border-bottom: 1px dotted #ccc; }
+        .label { font-weight: bold; color: #555; display: inline-block; width: 120px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>公司信息查找器 🔍</h1>
+        <div>
+            <input type="text" id="companyInput" placeholder="请输入公司名字，例如 Google 或 Apple">
+            <button onclick="searchCompany()">搜索</button>
+        </div>
+        <div id="loading" style="display: none; color: #007bff; margin-top: 10px;">正在努力搜索中...</div>
+        <div id="results">
+            </div>
+    </div>
+
+    <script>
+        // *** 已经替换为您的 Render 后端 URL ***
+        const API_BASE_URL = "https://cybersecurity-info-research.onrender.com"; 
+        
+        async function searchCompany() {
+            const companyName = document.getElementById('companyInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.getElementById('loading');
+            
+            resultsDiv.innerHTML = '';
+            
+            if (!companyName) {
+                resultsDiv.innerHTML = '<p style="color: red;">请输入公司名称！</p>';
+                return;
+            }
+
+            loadingDiv.style.display = 'block';
+
+            try {
+                // 构造 API 请求 URL
+                const apiUrl = `${API_BASE_URL}/api/search?name=${encodeURIComponent(companyName)}`;
+                
+                // 发起 API 请求
+                const response = await fetch(apiUrl);
+                
+                // 检查 HTTP 状态码
+                if (!response.ok) {
+                    throw new Error(`HTTP 错误！状态码: ${response.status}`);
+                }
+                
+                // 解析 JSON 数据 (注意：JavaScript 会自动处理 JSON 中的 Unicode 编码)
+                const data = await response.json();
+                
+                // 检查是否有后端返回的错误信息
+                if (data.error) {
+                    resultsDiv.innerHTML = `<p style="color: red;">搜索失败: ${data.error}</p>`;
+                } else {
+                    // 渲染结果
+                    displayResults(data);
+                }
+                
+            } catch (error) {
+                console.error('搜索时发生错误:', error);
+                resultsDiv.innerHTML = `<p style="color: red;">连接错误或数据处理失败: ${error.message}</p>`;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            
+            // 渲染结果时，JavaScript 会自动将 Unicode 转换为中文字符
+            resultsDiv.innerHTML = `
+                <div class="info-item"><span class="label">公司名称:</span> ${data.company_name}</div>
+                <div class="info-item"><span class="label">官方网站:</span> <a href="${data.website}" target="_blank">${data.website}</a></div>
+                <div class="info-item"><span class="label">年度营收:</span> ${data.revenue}</div>
+                <div class="info-item"><span class="label">业务范围:</span> ${data.business}</div>
+                <div class="info-item"><span class="label">安全事件:</span> ${data.security_incident}</div>
+            `;
+        }
+    </script>
+</body>
+</html>
