@@ -37,17 +37,19 @@ def search_company_info_gemini(company_name):
     """
     if not client:
         return {
-            "error": "后端配置错误：GemINI API 客户端未初始化。",
+            "error": "后端配置错误：Gemini API 客户端未初始化。",
             "details": "请在 Render 中设置 GEMINI_API_KEY 环境变量。"
         }
 
     # --- 构造模型提示和配置 ---
+    # !!! 关键修正：在 system_prompt 中添加绝对指令，确保只输出 JSON !!!
     system_prompt = (
         "你是一个专业的华泰网络安全客户信息查询助手。你的核心任务是利用内置的 Google 搜索工具，"
         "以最准确、最新、最全面的信息来回答用户对指定公司信息的查询。"
         "你需要提供公司名称、官方网站、最新年度营收、核心业务范围和已公开的安全事件信息。"
         "如果某个信息在搜索中无法找到，请明确回复 '信息不足，无法确认。' 或 '未找到相关公开记录。' 而不是猜测。"
         "请确保最终输出严格遵循提供的 JSON 结构。"
+        "**你的响应中只能包含符合 CompanyInfo schema 的 JSON 文本，不得包含任何额外的文字、解释或警告。**" 
     )
 
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
@@ -60,7 +62,7 @@ def search_company_info_gemini(company_name):
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 tools=[{"google_search": {}}],  # 启用 Google Search Tool
-                response_schema=CompanyInfo, # 依然使用 schema 确保结构
+                response_schema=CompanyInfo, 
                 temperature=0.0 
             )
         )
