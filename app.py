@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from google.genai import types
-# from pydantic import BaseModel  <-- 删除了导致冲突的导入
 import os 
 import json
 import re  
@@ -12,21 +11,11 @@ import urllib.parse
 app = Flask(__name__)
 CORS(app)
 
-# --- 1. 从环境变量中读取 Gemini Key ---
-# 注意：您的 Render 环境变量中键名是 GOOGLE_API_KEY，这里使用该名称更安全
-GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY") 
+# 简化初始化：只定义一个全局变量来存储 API Key，而不是在启动时初始化客户端
+# 客户端的初始化转移到 search_company_info_gemini 函数内部（如果需要）或保持简单
+API_KEY_NAME = "GOOGLE_API_KEY" # 确保读取的键名是这个
 
-# 初始化 Gemini 客户端
-client = None
-if GEMINI_API_KEY:
-    try:
-        # 使用 os.environ.get("GOOGLE_API_KEY") 作为 client 初始化参数
-        client = genai.Client(api_key=GEMINI_API_KEY) 
-        print("Gemini client initialized successfully.")
-    except Exception as e:
-        print(f"Error initializing Gemini client: {e}")
-
-# 定义我们期望的 JSON 格式字符串 (保留，用于系统提示)
+# 定义我们期望的 JSON 格式字符串
 JSON_FORMAT_STRING = """
 {
     "company_name": "公司名称",
@@ -36,13 +25,11 @@ JSON_FORMAT_STRING = """
     "security_incident": "已公开的安全事件或数据泄露记录"
 }
 """
-# 删除了 class CompanyInfo(types.BaseModel): 定义，因为它是错误的来源
 
 def extract_json(text):
     """
     使用正则表达式从包含杂乱文本的字符串中提取最外层的 JSON 对象。
     """
-    # 查找以 '{' 开头，以 '}' 结尾的、最长的匹配
     match = re.search(r'\{.*\}', text, re.DOTALL)
     if match:
         return match.group(0)
@@ -52,22 +39,26 @@ def search_company_info_gemini(company_name, company_url=None):
     """
     使用 Gemini 模型和 Google Search Tool/Website Tool 搜索信息。
     """
-    # 检查 API Key 名称是否正确 (您的 Render 使用 GOOGLE_API_KEY)
-    if not client:
+    # 核心修正：在每次调用前获取 API Key 并尝试初始化客户端
+    gemini_api_key = os.environ.get(API_KEY_NAME)
+    
+    if not gemini_api_key:
         return {
             "error": "后端配置错误：Gemini API 客户端未初始化。",
-            "details": "请在 Render 中设置 GOOGLE_API_KEY 环境变量。"
+            "details": f"请在 Render 中设置 {API_KEY_NAME} 环境变量。"
         }
-
+        
+    try:
+        # 每次调用时初始化客户端，确保使用最新的 API Key
+        client = genai.Client(api_key=gemini_api_key) 
+    except Exception as e:
+         return {"error": f"调用 Gemini API 客户端初始化失败: {str(e)}"}
+         
     # --- 构造工具列表和用户提示 ---
     
-    # 关键修正: 使用 types.Tool 启用内置工具
-    tools = [types.Tool.google_search] # 默认启用 Google 搜索工具
-    
-    # 基础用户查询
+    tools = [types.Tool.google_search] 
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
     
-    # 如果用户提供了网址，添加额外的指令和工具
     if company_url:
         cleaned_url = urllib.parse.unquote(company_url).strip() 
         tools.append(types.Tool.url_fetcher) 
@@ -89,35 +80,31 @@ def search_company_info_gemini(company_name, company_url=None):
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                tools=tools, # <-- 使用修正后的工具列表
+                tools=tools, 
                 temperature=0.0 
             )
         )
         
-        # --- JSON 提取容错处理 ---
+        # --- JSON 提取容错处理 (保持不变) ---
         if response.text:
             raw_text = response.text.strip()
             
-            # 1. 尝试直接解析
             try:
                 data = json.loads(raw_text)
                 return data
             except json.JSONDecodeError:
                 pass 
             
-            # 2. 如果直接解析失败，使用正则表达式提取 JSON 结构
             json_string = extract_json(raw_text)
             
             if json_string:
                 try:
                     data = json.loads(json_string)
-                    # 检查返回的 JSON 结构是否完整
                     if all(key in data for key in ["company_name", "website"]):
                         return data
                 except json.JSONDecodeError:
                     pass
 
-        # 如果提取和解析都失败
         return {
             "error": "Gemini API 返回了非结构化响应，可能包含错误或信息不足。",
             "details": f"API 原始响应（或部分）：{response.text[:500] if response.text else '空响应'}...",
