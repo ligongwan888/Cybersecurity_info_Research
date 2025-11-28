@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>华泰网络安全客户信息查询</title>
     <style>
-        /* --- 定义新的主题色 --- */
+        /* ... (CSS 样式部分保持不变) ... */
         :root {
             --main-color: #00BFFF; /* 深天蓝色 - 现代、科技感 */
             --light-color: #87CEEB; /* 浅蓝色 */
@@ -185,6 +185,7 @@
     </div>
 
     <script>
+        // ... (Canvas/数字雨代码保持不变) ...
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -235,7 +236,7 @@
         // --- 进度条控制 ---
         let intervalId;
 
-        function startProgressBar() {
+        function startProgressBar(attempt = 1) {
             const progressBar = document.getElementById('progress-bar');
             const progressContainer = document.getElementById('progress-container');
             
@@ -243,14 +244,20 @@
             progressBar.style.width = '0%';
             let width = 0;
 
+            if (attempt > 1) {
+                 document.getElementById('loading').innerHTML = `服务正在启动，尝试第 ${attempt} 次重试...`;
+            } else {
+                 document.getElementById('loading').innerHTML = `正在进行深度安全信息检索...`;
+            }
+
             intervalId = setInterval(() => {
                 // 模拟进度增长，到95%后减缓
                 if (width < 95) {
-                    width += 1; // 较快增长
+                    width += 1; 
                 } else if (width < 99) {
-                    width += 0.2; // 极慢增长
+                    width += 0.2; 
                 } else {
-                    clearInterval(intervalId); // 停止增长
+                    clearInterval(intervalId); 
                 }
                 progressBar.style.width = width + '%';
             }, 100); 
@@ -264,7 +271,6 @@
             if (success) {
                 progressBar.style.width = '100%';
             } else {
-                // 如果失败，迅速归零
                 progressBar.style.width = '0%';
             }
             // 稍后隐藏容器
@@ -272,7 +278,8 @@
                 progressContainer.style.display = 'none';
             }, 500); 
         }
-        // --- 搜索逻辑 ---
+        
+        // --- 核心搜索逻辑 - 增加重试机制 ---
         async function searchCompany() {
             const companyName = document.getElementById('companyName').value.trim();
             const companyUrl = document.getElementById('companyUrl').value.trim(); 
@@ -283,11 +290,18 @@
             }
 
             const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            // 调用重试函数
+            await fetchWithRetry(companyName, companyUrl, 1);
+        }
+
+        async function fetchWithRetry(companyName, companyUrl, attempt) {
+            const resultsDiv = document.getElementById('results');
             const loadingDiv = document.getElementById('loading');
             
-            resultsDiv.innerHTML = '';
             loadingDiv.style.display = 'block';
-            startProgressBar(); // <-- 启动进度条
+            startProgressBar(attempt); // 启动进度条，并显示尝试次数
 
             try {
                 let url = `${API_BASE_URL}?name=${encodeURIComponent(companyName)}`;
@@ -296,7 +310,13 @@
                 }
                 
                 const response = await fetch(url);
-                const data = await response.json();
+                
+                // 检查 HTTP 状态码是否是 5xx (Render 错误页面)
+                if (response.status >= 500 && response.status < 600) {
+                     throw new Error("SERVER_TIMEOUT");
+                }
+                
+                const data = await response.json(); // 尝试解析 JSON
 
                 loadingDiv.style.display = 'none';
 
@@ -308,9 +328,24 @@
                     displayResults(data);
                 }
             } catch (e) {
-                loadingDiv.style.display = 'none';
-                stopProgressBar(false); 
-                resultsDiv.innerHTML = `<div style="color:#FF6347;">连接错误: 无法连接到后端服务 (${e.message})</div>`;
+                // 如果是首次错误 (Failed to fetch 或 JSON 解析错误/超时)，并且不是第二次尝试
+                if (attempt < 2 && (e.message.includes("Failed to fetch") || e.message.includes("JSON") || e.message.includes("SERVER_TIMEOUT"))) {
+                    
+                    // 等待 5 秒，给 Render 足够的时间完全启动
+                    document.getElementById('loading').innerHTML = `首次连接失败，服务启动中... 5秒后重试...`;
+                    stopProgressBar(false); 
+                    
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    
+                    // 进行第二次重试
+                    await fetchWithRetry(companyName, companyUrl, 2);
+                    
+                } else {
+                    // 如果是第二次重试仍然失败，或不是我们预期内的错误
+                    loadingDiv.style.display = 'none';
+                    stopProgressBar(false); 
+                    resultsDiv.innerHTML = `<div style="color:#FF6347;">连接错误 (已重试): 无法连接或服务响应非结构化数据 (${e.message})</div>`;
+                }
             }
         }
 
