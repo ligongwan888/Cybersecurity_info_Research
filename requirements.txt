@@ -1,4 +1,4 @@
 flask
 flask-cors
 gunicorn
-requests  # 必须确保有这一行
+google-genai
