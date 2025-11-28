@@ -1,5 +1,4 @@
 flask
+google-genai
 flask-cors
 gunicorn
-google-genai
-pydantic
