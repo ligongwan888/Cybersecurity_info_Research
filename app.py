@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from google.genai import types
+from pydantic import BaseModel # <-- 修正: 直接从 pydantic 导入 BaseModel
 import os 
 import json
 
@@ -10,21 +11,20 @@ app = Flask(__name__)
 CORS(app)
 
 # --- 1. 从环境变量中读取 Gemini Key ---
-# 确保在 Render 中设置 KEY = GEMINI_API_KEY
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # 初始化 Gemini 客户端
 client = None
 if GEMINI_API_KEY:
     try:
-        # 使用环境变量中的 KEY 初始化客户端
+        # 使用 KEY 初始化客户端
         client = genai.Client(api_key=GEMINI_API_KEY)
         print("Gemini client initialized successfully.")
     except Exception as e:
         print(f"Error initializing Gemini client: {e}")
 
-# 定义输出结构（强制模型返回一个固定的 JSON 结构）
-class CompanyInfo(types.BaseModel):
+# 定义输出结构（现在继承自修正后的 pydantic.BaseModel）
+class CompanyInfo(BaseModel): 
     """用于结构化输出的公司信息"""
     company_name: str
     website: str
@@ -44,7 +44,7 @@ def search_company_info_gemini(company_name):
 
     # --- 构造模型提示和配置 ---
     
-    # 系统提示：告诉模型它的角色和任务
+    # 系统提示
     system_prompt = (
         "你是一个专业的华泰网络安全客户信息查询助手。你的核心任务是利用内置的 Google 搜索工具，"
         "以最准确、最新、最全面的信息来回答用户对指定公司信息的查询。"
@@ -66,13 +66,12 @@ def search_company_info_gemini(company_name):
                 tools=[{"google_search": {}}],  # 启用内置 Google Search Tool
                 response_mime_type="application/json",
                 response_schema=CompanyInfo, # 强制模型返回结构化JSON
-                temperature=0.0 # 低温设置，追求事实准确性
+                temperature=0.0 
             )
         )
         
         # 解析返回的JSON字符串
         if response.text:
-             # 将模型返回的JSON字符串转换为Python字典
             data = json.loads(response.text)
             return data
         
@@ -90,7 +89,6 @@ def search():
     if not company_name:
         return jsonify({"error": "请输入公司名称"}), 400
 
-    # 调用新的 Gemini 搜索函数
     result = search_company_info_gemini(company_name)
     
     return jsonify(result)
