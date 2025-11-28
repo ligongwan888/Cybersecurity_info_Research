@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
-from google.genai import types # 保持导入，但不再用于 BaseModel
+from google.genai import types
+from pydantic import BaseModel
 import os 
 import json
-import re  # 导入正则表达式库，继续用于提取 JSON
+import re  
+import urllib.parse 
 
 # 初始化 Flask 应用
 app = Flask(__name__)
@@ -43,9 +45,9 @@ def extract_json(text):
         return match.group(0)
     return None
 
-def search_company_info_gemini(company_name):
+def search_company_info_gemini(company_name, company_url=None): 
     """
-    使用 Gemini 模型和 Google Search Tool 搜索信息，并强制模型返回 JSON 文本。
+    使用 Gemini 模型和 Google Search Tool/Website Tool 搜索信息。
     """
     if not client:
         return {
@@ -53,19 +55,30 @@ def search_company_info_gemini(company_name):
             "details": "请在 Render 中设置 GEMINI_API_KEY 环境变量。"
         }
 
-    # --- 构造模型提示：直接要求 JSON 格式 ---
+    # --- 构造工具列表和用户提示 ---
     
+    tools = [{"google_search": {}}] # 默认启用 Google 搜索工具
+    
+    # 基础用户查询
+    user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
+    
+    # 如果用户提供了网址，添加额外的指令和工具
+    if company_url:
+        # 清理 URL 编码
+        cleaned_url = urllib.parse.unquote(company_url).strip() 
+        # 添加 URL 抓取工具
+        tools.append({"url_fetcher": {}}) 
+        
+        user_prompt += f"\n\n此外，请访问这个网址：{cleaned_url}。请结合该网址提供的内容，尤其是补充或验证公司的核心业务范围，并将其总结到 'business' 字段中。如果网址抓取失败，请使用 Google Search Tool 的结果。"
+        
     # 系统提示：强烈要求 JSON 格式
     system_prompt = (
-        "你是一个专业的华泰网络安全客户信息查询助手。你的核心任务是利用内置的 Google 搜索工具，"
+        "你是一个专业的华泰网络安全客户信息查询助手。你的核心任务是利用所有可用的工具，"
         "以最准确、最新、最全面的信息来回答用户对指定公司信息的查询。"
         "如果某个信息在搜索中无法找到，请使用 '信息不足，无法确认。' 来代替。"
         "你的响应中必须且只能包含一个符合以下格式的 JSON 结构，不得有任何其他文字、解释或警告：\n\n"
         f"JSON 格式:\n{JSON_FORMAT_STRING}\n\n"
     )
-
-    # 用户的查询
-    user_prompt = f"请为我查询公司 '{company_name}' 的信息。"
 
     try:
         response = client.models.generate_content(
@@ -73,8 +86,7 @@ def search_company_info_gemini(company_name):
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                tools=[{"google_search": {}}],  # 启用 Google Search Tool
-                # 关键：移除 response_schema 和 BaseModel，依赖提示词工程
+                tools=tools, # <-- 动态启用工具
                 temperature=0.0 
             )
         )
@@ -83,7 +95,14 @@ def search_company_info_gemini(company_name):
         if response.text:
             raw_text = response.text.strip()
             
-            # 1. 尝试使用正则表达式提取 JSON 结构
+            # 1. 尝试直接解析
+            try:
+                data = json.loads(raw_text)
+                return data
+            except json.JSONDecodeError:
+                pass 
+            
+            # 2. 如果直接解析失败，使用正则表达式提取 JSON 结构
             json_string = extract_json(raw_text)
             
             if json_string:
@@ -92,11 +111,8 @@ def search_company_info_gemini(company_name):
                     # 检查返回的 JSON 结构是否完整
                     if all(key in data for key in ["company_name", "website"]):
                         return data
-                    else:
-                        # 即使解析成功，如果结构不完整也认为失败
-                        raise json.JSONDecodeError("Incomplete JSON structure.", json_string, 0)
-                except json.JSONDecodeError as e:
-                    pass # 忽略，返回错误详情
+                except json.JSONDecodeError:
+                    pass
 
         # 如果提取和解析都失败
         return {
@@ -113,11 +129,12 @@ def search_company_info_gemini(company_name):
 @app.route('/api/search', methods=['GET'])
 def search():
     company_name = request.args.get('name', '')
+    company_url = request.args.get('url', '') # <-- 接收网址参数
     
     if not company_name:
         return jsonify({"error": "请输入公司名称"}), 400
 
-    result = search_company_info_gemini(company_name)
+    result = search_company_info_gemini(company_name, company_url) 
     
     return jsonify(result)
 
