@@ -2,4 +2,4 @@ flask
 flask-cors
 gunicorn
 google-genai
-pydantic  # 新增这一行
+pydantic
