@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from google.genai import types
-from pydantic import BaseModel # <-- 修正: 直接从 pydantic 导入 BaseModel
+from pydantic import BaseModel
 import os 
 import json
 
@@ -17,13 +17,12 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 client = None
 if GEMINI_API_KEY:
     try:
-        # 使用 KEY 初始化客户端
         client = genai.Client(api_key=GEMINI_API_KEY)
         print("Gemini client initialized successfully.")
     except Exception as e:
         print(f"Error initializing Gemini client: {e}")
 
-# 定义输出结构（现在继承自修正后的 pydantic.BaseModel）
+# 定义输出结构
 class CompanyInfo(BaseModel): 
     """用于结构化输出的公司信息"""
     company_name: str
@@ -43,8 +42,6 @@ def search_company_info_gemini(company_name):
         }
 
     # --- 构造模型提示和配置 ---
-    
-    # 系统提示
     system_prompt = (
         "你是一个专业的华泰网络安全客户信息查询助手。你的核心任务是利用内置的 Google 搜索工具，"
         "以最准确、最新、最全面的信息来回答用户对指定公司信息的查询。"
@@ -53,7 +50,6 @@ def search_company_info_gemini(company_name):
         "请确保最终输出严格遵循提供的 JSON 结构。"
     )
 
-    # 用户的查询
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
 
     try:
@@ -63,9 +59,9 @@ def search_company_info_gemini(company_name):
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                tools=[{"google_search": {}}],  # 启用内置 Google Search Tool
-                response_mime_type="application/json",
-                response_schema=CompanyInfo, # 强制模型返回结构化JSON
+                tools=[{"google_search": {}}],  # 启用 Google Search Tool
+                # response_mime_type="application/json",  <-- 已删除此冲突参数
+                response_schema=CompanyInfo, # 依然使用 schema 确保结构
                 temperature=0.0 
             )
         )
@@ -93,6 +89,5 @@ def search():
     
     return jsonify(result)
 
-# 在部署时，通常使用 gunicorn 或其他 WSGI 服务器启动
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
