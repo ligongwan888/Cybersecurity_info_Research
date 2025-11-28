@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS # 导入 CORS
+from flask_cors import CORS 
 from google import genai
 from google.genai import types
 import os 
@@ -12,8 +12,8 @@ app = Flask(__name__)
 # 核心修正：增强 CORS 配置，允许所有来源的 /api/* 路径访问
 CORS(app, resources={r"/api/*": {"origins": "*"}}) 
 
-# 简化初始化：只定义一个全局变量来存储 API Key，而不是在启动时初始化客户端
-API_KEY_NAME = "GOOGLE_API_KEY" # 确保读取的键名是这个
+# 定义 API Key 的环境变量名称
+API_KEY_NAME = "GOOGLE_API_KEY" 
 
 # 定义我们期望的 JSON 格式字符串
 JSON_FORMAT_STRING = """
@@ -39,7 +39,7 @@ def search_company_info_gemini(company_name, company_url=None):
     """
     使用 Gemini 模型和 Google Search Tool/Website Tool 搜索信息。
     """
-    # 核心修正：在每次调用前获取 API Key 并尝试初始化客户端 (健壮性)
+    # 健壮性修正：在每次调用前获取 API Key 并尝试初始化客户端
     gemini_api_key = os.environ.get(API_KEY_NAME)
     
     if not gemini_api_key:
@@ -52,14 +52,15 @@ def search_company_info_gemini(company_name, company_url=None):
         # 每次调用时初始化客户端，确保使用最新的 API Key
         client = genai.Client(api_key=gemini_api_key) 
     except Exception as e:
+         # 这会捕获由于 API Key 无效导致的初始化失败
          return {"error": f"调用 Gemini API 客户端初始化失败: {str(e)}"}
          
     # --- 构造工具列表和用户提示 ---
     
+    # 修复 URL Tool 语法
     tools = [types.Tool.google_search] 
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
     
-    # 修复 URL Tool 语法
     if company_url:
         cleaned_url = urllib.parse.unquote(company_url).strip() 
         tools.append(types.Tool.url_fetcher) 
@@ -86,7 +87,7 @@ def search_company_info_gemini(company_name, company_url=None):
             )
         )
         
-        # --- JSON 提取容错处理 (保持不变) ---
+        # --- JSON 提取容错处理 ---
         if response.text:
             raw_text = response.text.strip()
             
