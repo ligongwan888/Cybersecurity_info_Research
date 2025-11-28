@@ -5,22 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>华泰网络安全客户信息查询</title>
     <style>
-        /* --- 1. 全局样式和数字雨背景 --- */
+        /* --- 定义新的主题色 --- */
+        :root {
+            --main-color: #00BFFF; /* 深天蓝色 - 现代、科技感 */
+            --light-color: #87CEEB; /* 浅蓝色 */
+            --dark-bg: rgba(0, 0, 0, 0.7); 
+            --darkest-bg: #000;
+        }
+
+        /* --- 1. 全局样式和数字雨背景 (改为蓝色) --- */
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
-            overflow: hidden; /* 防止数字雨滚动条 */
-            background: #000;
-            font-family: 'Consolas', monospace; /* 程序员字体 */
-            color: #0F0;
+            overflow: hidden; 
+            background: var(--darkest-bg);
+            font-family: 'Consolas', monospace; 
+            color: var(--light-color);
         }
         canvas {
             display: block;
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1; /* 背景层 */
+            z-index: 1; 
         }
         /* --- 2. 容器样式 --- */
         #content-container {
@@ -29,18 +37,18 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10; /* 前景层，高于背景 */
+            z-index: 10; 
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; /* 垂直居中 */
-            text-shadow: 0 0 5px #0F0;
+            justify-content: center; 
+            text-shadow: 0 0 5px var(--main-color);
         }
         h1 {
-            color: #0F0;
+            color: var(--main-color);
             font-size: 2.5em;
             margin-bottom: 30px;
-            text-shadow: 0 0 10px #0F0, 0 0 20px #0F0; /* 霓虹灯效果 */
+            text-shadow: 0 0 10px var(--main-color), 0 0 20px var(--main-color); 
         }
         /* --- 3. 输入和搜索框样式 --- */
         #search-box {
@@ -50,9 +58,9 @@
             width: 80%;
             max-width: 600px;
             padding: 20px;
-            background: rgba(0, 0, 0, 0.7); /* 半透明黑底 */
-            border: 1px solid #0F0;
-            box-shadow: 0 0 10px #0F0;
+            background: var(--dark-bg); 
+            border: 1px solid var(--main-color);
+            box-shadow: 0 0 10px var(--main-color);
             border-radius: 5px;
             margin-bottom: 20px;
         }
@@ -63,12 +71,12 @@
         }
         input[type="text"], button, input[type="file"] {
             padding: 10px;
-            border: 1px solid #0F0;
+            border: 1px solid var(--main-color);
             font-size: 1em;
             background: rgba(0, 0, 0, 0.9);
-            color: #0F0;
+            color: var(--light-color);
             font-family: 'Consolas', monospace;
-            box-shadow: inset 0 0 5px #0F0;
+            box-shadow: inset 0 0 5px var(--main-color);
         }
         input[type="text"] {
             flex-grow: 1;
@@ -76,10 +84,10 @@
         }
         button {
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, color 0.3s;
         }
         button:hover {
-            background-color: #0F0;
+            background-color: var(--main-color);
             color: #000;
         }
         /* --- 4. 结果和信息样式 --- */
@@ -87,40 +95,57 @@
             width: 80%;
             max-width: 600px;
             padding: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid #0F0;
-            box-shadow: 0 0 10px #0F0;
+            background: var(--dark-bg);
+            border: 1px solid var(--main-color);
+            box-shadow: 0 0 10px var(--main-color);
             border-radius: 5px;
             text-align: left;
         }
         .info-item {
             margin-bottom: 10px; 
             padding: 10px; 
-            border-bottom: 1px dotted #0F0;
-            word-wrap: break-word; /* 允许在长单词内部换行 */
-            white-space: normal;  /* 确保文本正常换行 */
+            border-bottom: 1px dotted var(--light-color);
+            word-wrap: break-word; 
+            white-space: normal;  
         }
         .label { 
             font-weight: bold; 
-            color: #00FF00; /* 亮绿色 */
+            color: var(--main-color); /* 标题使用主色 */
             display: inline-block; 
             width: 120px; 
             vertical-align: top;
         }
         .content {
-            color: #FFF; /* 白色内容 */
+            color: #FFF; /* 内容使用白色 */
         }
         a {
-            color: #00FFFF; /* 链接使用青色 */
+            color: var(--light-color); /* 链接使用浅色 */
             text-decoration: none;
         }
         a:hover {
             text-decoration: underline;
         }
         #loading {
-            color: #FFD700; /* 黄金色 */
+            color: #FFD700; 
             font-weight: bold;
             margin-top: 15px;
+        }
+        /* --- 5. 进度条样式 (新增) --- */
+        #progress-bar {
+            width: 0;
+            height: 5px;
+            background-color: var(--main-color);
+            box-shadow: 0 0 5px var(--main-color);
+            transition: width 0.1s linear; 
+            margin-top: 10px;
+            border-radius: 2px;
+        }
+        #progress-container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(50, 50, 50, 0.5);
+            border-radius: 2px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
@@ -146,6 +171,10 @@
         </div>
 
         <div id="loading" style="display:none;">正在进行深度安全信息检索...</div>
+
+        <div id="progress-container" style="display:none;">
+            <div id="progress-bar"></div>
+        </div>
 
         <div id="results-container">
             <div id="results">
@@ -173,7 +202,7 @@
             ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
             ctx.fillRect(0, 0, W, H);
             
-            ctx.fillStyle = '#0F0'; 
+            ctx.fillStyle = '#00BFFF'; // 使用主颜色
             ctx.font = font_size + 'px Consolas';
 
             for(let i=0; i<drops.length; i++) {
@@ -201,9 +230,50 @@
         // 替换为您的 Render 部署地址
         const API_BASE_URL = "https://cybersecurity-info-research.onrender.com/api/search"; 
 
+        // --- 进度条控制 ---
+        let intervalId;
+
+        function startProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+            const progressContainer = document.getElementById('progress-container');
+            
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            let width = 0;
+
+            intervalId = setInterval(() => {
+                // 模拟进度增长，到95%后减缓
+                if (width < 95) {
+                    width += 1; // 较快增长
+                } else if (width < 99) {
+                    width += 0.2; // 极慢增长
+                } else {
+                    clearInterval(intervalId); // 停止增长
+                }
+                progressBar.style.width = width + '%';
+            }, 100); 
+        }
+
+        function stopProgressBar(success = true) {
+            clearInterval(intervalId);
+            const progressBar = document.getElementById('progress-bar');
+            const progressContainer = document.getElementById('progress-container');
+            
+            if (success) {
+                progressBar.style.width = '100%';
+            } else {
+                // 如果失败，迅速归零
+                progressBar.style.width = '0%';
+            }
+            // 稍后隐藏容器
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+            }, 500); 
+        }
+        // --- 搜索逻辑 ---
         async function searchCompany() {
             const companyName = document.getElementById('companyName').value.trim();
-            const companyUrl = document.getElementById('companyUrl').value.trim(); // <-- 获取网址输入值
+            const companyUrl = document.getElementById('companyUrl').value.trim(); 
 
             if (!companyName) {
                 alert("请输入公司名称");
@@ -215,12 +285,11 @@
             
             resultsDiv.innerHTML = '';
             loadingDiv.style.display = 'block';
+            startProgressBar(); // <-- 启动进度条
 
             try {
-                // 构造 URL，将 companyUrl 作为可选参数发送给后端
                 let url = `${API_BASE_URL}?name=${encodeURIComponent(companyName)}`;
                 if (companyUrl) {
-                    // 确保网址参数被正确编码
                     url += `&url=${encodeURIComponent(companyUrl)}`; 
                 }
                 
@@ -230,12 +299,15 @@
                 loadingDiv.style.display = 'none';
 
                 if (data.error) {
+                    stopProgressBar(false); 
                     resultsDiv.innerHTML = `<div style="color:#FF6347;">搜索失败: ${data.error}</div><div style="font-size:0.8em; color:#FFD700;">${data.details || ''}</div>`;
                 } else {
+                    stopProgressBar(true); 
                     displayResults(data);
                 }
             } catch (e) {
                 loadingDiv.style.display = 'none';
+                stopProgressBar(false); 
                 resultsDiv.innerHTML = `<div style="color:#FF6347;">连接错误: 无法连接到后端服务 (${e.message})</div>`;
             }
         }
