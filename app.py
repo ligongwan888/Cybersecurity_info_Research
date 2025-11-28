@@ -37,7 +37,7 @@ def search_company_info_gemini(company_name):
     """
     if not client:
         return {
-            "error": "后端配置错误：Gemini API 客户端未初始化。",
+            "error": "后端配置错误：GemINI API 客户端未初始化。",
             "details": "请在 Render 中设置 GEMINI_API_KEY 环境变量。"
         }
 
@@ -60,20 +60,30 @@ def search_company_info_gemini(company_name):
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 tools=[{"google_search": {}}],  # 启用 Google Search Tool
-                # response_mime_type="application/json",  <-- 已删除此冲突参数
                 response_schema=CompanyInfo, # 依然使用 schema 确保结构
                 temperature=0.0 
             )
         )
         
-        # 解析返回的JSON字符串
+        # --- 增强的错误处理和 JSON 解析 ---
         if response.text:
-            data = json.loads(response.text)
-            return data
+            try:
+                # 尝试解析模型返回的文本为JSON
+                data = json.loads(response.text)
+                return data
+            except json.JSONDecodeError as json_e:
+                # 如果解析失败，返回详细错误信息
+                return {
+                    "error": "Gemini API 返回了非 JSON 格式的文本。",
+                    "details": f"API 响应文本（可能包含错误或非结构化输出）：{response.text[:500]}...",
+                    "reason": "这可能是模型在未找到信息时返回的非结构化提示，或 API 调用配额已用尽。"
+                }
         
-        return {"error": "Gemini API 返回了空响应或无法解析的结构。"}
+        # 如果 response.text 为空
+        return {"error": "Gemini API 返回了空响应，请检查配额或稍后再试。"}
 
     except Exception as e:
+        # 捕获其他所有 API 异常
         return {"error": f"调用 Gemini API 失败: {str(e)}"}
 
 
