@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>华泰网络安全客户信息查询</title>
     <style>
-        /* ... (CSS 样式部分保持不变) ... */
+        /* --- 定义新的主题色 --- */
         :root {
             --main-color: #00BFFF; /* 深天蓝色 - 现代、科技感 */
             --light-color: #87CEEB; /* 浅蓝色 */
@@ -185,7 +185,6 @@
     </div>
 
     <script>
-        // ... (Canvas/数字雨代码保持不变) ...
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -313,10 +312,13 @@
                 
                 // 检查 HTTP 状态码是否是 5xx (Render 错误页面)
                 if (response.status >= 500 && response.status < 600) {
+                     // 捕获 SERVER_TIMEOUT 错误
                      throw new Error("SERVER_TIMEOUT");
                 }
                 
-                const data = await response.json(); // 尝试解析 JSON
+                // 尝试获取 JSON
+                const text = await response.text(); 
+                const data = JSON.parse(text); 
 
                 loadingDiv.style.display = 'none';
 
@@ -331,11 +333,12 @@
                 // 如果是首次错误 (Failed to fetch 或 JSON 解析错误/超时)，并且不是第二次尝试
                 if (attempt < 2 && (e.message.includes("Failed to fetch") || e.message.includes("JSON") || e.message.includes("SERVER_TIMEOUT"))) {
                     
-                    // 等待 5 秒，给 Render 足够的时间完全启动
-                    document.getElementById('loading').innerHTML = `首次连接失败，服务启动中... 5秒后重试...`;
+                    // 等待 10 秒，给 Render 更充足的时间来唤醒和启动 Gunicorn
+                    document.getElementById('loading').innerHTML = `首次连接失败，服务启动中... 10秒后重试...`;
                     stopProgressBar(false); 
                     
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    // 核心修改：等待时间改为 10000 毫秒 (10秒)
+                    await new Promise(resolve => setTimeout(resolve, 10000));
                     
                     // 进行第二次重试
                     await fetchWithRetry(companyName, companyUrl, 2);
