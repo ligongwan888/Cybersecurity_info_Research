@@ -11,6 +11,7 @@
             --light-color: #87CEEB; /* 浅蓝色 */
             --dark-bg: rgba(0, 0, 0, 0.7); 
             --darkest-bg: #000;
+            --border-radius: 8px; /* 新增：圆角半径 */
         }
 
         /* --- 1. 全局样式和数字雨背景 (改为蓝色) --- */
@@ -45,6 +46,8 @@
             text-shadow: 0 0 5px var(--main-color);
         }
         h1 {
+            /* 标题已删除 */
+            display: none; 
             color: var(--main-color);
             font-size: 2.5em;
             margin-bottom: 30px;
@@ -61,7 +64,7 @@
             background: var(--dark-bg); 
             border: 1px solid var(--main-color);
             box-shadow: 0 0 10px var(--main-color);
-            border-radius: 5px;
+            border-radius: var(--border-radius); /* 圆角化 */
             margin-bottom: 20px;
         }
         #name-input-group, #url-input-group, #file-upload-group {
@@ -77,6 +80,7 @@
             color: var(--light-color);
             font-family: 'Consolas', monospace;
             box-shadow: inset 0 0 5px var(--main-color);
+            border-radius: var(--border-radius); /* 圆角化 */
         }
         input[type="text"] {
             flex-grow: 1;
@@ -98,7 +102,7 @@
             background: var(--dark-bg);
             border: 1px solid var(--main-color);
             box-shadow: 0 0 10px var(--main-color);
-            border-radius: 5px;
+            border-radius: var(--border-radius); /* 圆角化 */
             text-align: left;
         }
         .info-item {
@@ -130,7 +134,7 @@
             font-weight: bold;
             margin-top: 15px;
         }
-        /* --- 5. 进度条样式 (新增) --- */
+        /* --- 5. 进度条样式 --- */
         #progress-bar {
             width: 0;
             height: 5px;
@@ -153,8 +157,6 @@
     <canvas id="canvas"></canvas>
     
     <div id="content-container">
-        <h1>华泰网络安全客户信息查询 🛡️</h1>
-        
         <div id="search-box">
             <div id="name-input-group">
                 <input type="text" id="companyName" placeholder="🔍 请输入客户公司名称" required>
