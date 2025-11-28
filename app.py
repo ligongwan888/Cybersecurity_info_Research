@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from google import genai
 from google.genai import types
-from pydantic import BaseModel
+# from pydantic import BaseModel  <-- 删除了导致冲突的导入
 import os 
 import json
 import re  
@@ -13,18 +13,20 @@ app = Flask(__name__)
 CORS(app)
 
 # --- 1. 从环境变量中读取 Gemini Key ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+# 注意：您的 Render 环境变量中键名是 GOOGLE_API_KEY，这里使用该名称更安全
+GEMINI_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 
 # 初始化 Gemini 客户端
 client = None
 if GEMINI_API_KEY:
     try:
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        # 使用 os.environ.get("GOOGLE_API_KEY") 作为 client 初始化参数
+        client = genai.Client(api_key=GEMINI_API_KEY) 
         print("Gemini client initialized successfully.")
     except Exception as e:
         print(f"Error initializing Gemini client: {e}")
 
-# 定义我们期望的 JSON 格式字符串
+# 定义我们期望的 JSON 格式字符串 (保留，用于系统提示)
 JSON_FORMAT_STRING = """
 {
     "company_name": "公司名称",
@@ -34,6 +36,7 @@ JSON_FORMAT_STRING = """
     "security_incident": "已公开的安全事件或数据泄露记录"
 }
 """
+# 删除了 class CompanyInfo(types.BaseModel): 定义，因为它是错误的来源
 
 def extract_json(text):
     """
@@ -49,10 +52,11 @@ def search_company_info_gemini(company_name, company_url=None):
     """
     使用 Gemini 模型和 Google Search Tool/Website Tool 搜索信息。
     """
+    # 检查 API Key 名称是否正确 (您的 Render 使用 GOOGLE_API_KEY)
     if not client:
         return {
             "error": "后端配置错误：Gemini API 客户端未初始化。",
-            "details": "请在 Render 中设置 GEMINI_API_KEY 环境变量。"
+            "details": "请在 Render 中设置 GOOGLE_API_KEY 环境变量。"
         }
 
     # --- 构造工具列表和用户提示 ---
@@ -65,9 +69,7 @@ def search_company_info_gemini(company_name, company_url=None):
     
     # 如果用户提供了网址，添加额外的指令和工具
     if company_url:
-        # 清理 URL 编码
         cleaned_url = urllib.parse.unquote(company_url).strip() 
-        # 修正: 直接在列表中添加内置常量 URL_FETCHER
         tools.append(types.Tool.url_fetcher) 
         
         user_prompt += f"\n\n此外，请访问这个网址：{cleaned_url}。请结合该网址提供的内容，尤其是补充或验证公司的核心业务范围，并将其总结到 'business' 字段中。如果网址抓取失败，请使用 Google Search Tool 的结果。"
@@ -130,7 +132,7 @@ def search_company_info_gemini(company_name, company_url=None):
 @app.route('/api/search', methods=['GET'])
 def search():
     company_name = request.args.get('name', '')
-    company_url = request.args.get('url', '') # <-- 接收网址参数
+    company_url = request.args.get('url', '') 
     
     if not company_name:
         return jsonify({"error": "请输入公司名称"}), 400
