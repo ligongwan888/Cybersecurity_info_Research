@@ -57,7 +57,8 @@ def search_company_info_gemini(company_name, company_url=None):
 
     # --- 构造工具列表和用户提示 ---
     
-    tools = [{"google_search": {}}] # 默认启用 Google 搜索工具
+    # 关键修正: 使用 types.Tool 启用内置工具
+    tools = [types.Tool.google_search] # 默认启用 Google 搜索工具 (修正后的语法)
     
     # 基础用户查询
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
@@ -66,8 +67,8 @@ def search_company_info_gemini(company_name, company_url=None):
     if company_url:
         # 清理 URL 编码
         cleaned_url = urllib.parse.unquote(company_url).strip() 
-        # 添加 URL 抓取工具
-        tools.append({"url_fetcher": {}}) 
+        # 修正: 直接在列表中添加内置常量 URL_FETCHER
+        tools.append(types.Tool.url_fetcher) 
         
         user_prompt += f"\n\n此外，请访问这个网址：{cleaned_url}。请结合该网址提供的内容，尤其是补充或验证公司的核心业务范围，并将其总结到 'business' 字段中。如果网址抓取失败，请使用 Google Search Tool 的结果。"
         
@@ -86,7 +87,7 @@ def search_company_info_gemini(company_name, company_url=None):
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
-                tools=tools, # <-- 动态启用工具
+                tools=tools, # <-- 使用修正后的工具列表
                 temperature=0.0 
             )
         )
@@ -129,14 +130,4 @@ def search_company_info_gemini(company_name, company_url=None):
 @app.route('/api/search', methods=['GET'])
 def search():
     company_name = request.args.get('name', '')
-    company_url = request.args.get('url', '') # <-- 接收网址参数
-    
-    if not company_name:
-        return jsonify({"error": "请输入公司名称"}), 400
-
-    result = search_company_info_gemini(company_name, company_url) 
-    
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    company_url = request.args.get('url', '')
