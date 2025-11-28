@@ -58,7 +58,7 @@ def search_company_info_gemini(company_name, company_url=None):
     # --- 构造工具列表和用户提示 ---
     
     # 关键修正: 使用 types.Tool 启用内置工具
-    tools = [types.Tool.google_search] # 默认启用 Google 搜索工具 (修正后的语法)
+    tools = [types.Tool.google_search] # 默认启用 Google 搜索工具
     
     # 基础用户查询
     user_prompt = f"请为我查询公司 '{company_name}' 的信息，包括：官方网站、最新年度营收、核心业务范围和已公开的安全事件或数据泄露记录。确保所有信息都是最新的。"
@@ -130,4 +130,24 @@ def search_company_info_gemini(company_name, company_url=None):
 @app.route('/api/search', methods=['GET'])
 def search():
     company_name = request.args.get('name', '')
-    company_url = request.args.get('url', '')
+    company_url = request.args.get('url', '') # <-- 接收网址参数
+    
+    if not company_name:
+        return jsonify({"error": "请输入公司名称"}), 400
+
+    result = search_company_info_gemini(company_name, company_url) 
+    
+    return jsonify(result)
+
+# 定义根路径路由 (用于检查服务状态)
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        "status": "Service is running",
+        "message": "Access the API endpoint at /api/search?name=...",
+        "tip": "This confirms the Render backend is online and responsive."
+    })
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
